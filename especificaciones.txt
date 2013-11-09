@@ -1,0 +1,85 @@
+
+- Todas las temperaturas las envio como entero y en grados centigrados (seguramente entre 20 ºC y -70ºC.
+- la 5 Alarma : es boolean, la informo como 0 o 1 como valor (0=No, 1=Si).
+- Idem para 6, 7, 11, 12  la informo como 0 o 1 como valor (0=No, 1=Si).
+- 10 es un valor de temperatura de referencia en grados centigrados para las PT100 (sensor de temperatura), no es util para el cliente pero si para nosotros se debería ver en alguna parte de la página con el nombre de Referencia.
+
+1, Temperatura Freezer 1
+2, Temperatura Freezer 2
+3, Temperatura Freezer 3
+4, Temperatura Ambiente
+5, Alarma de Temperatura
+6, Alarma de Corte de Tensión
+7, Alarma Batería baja
+8, Tensión de Línea 1
+9, Tensión de Línea 2
+10, Valor de Referencia
+11, Batería OK :Si/No
+12, Fuente OK: Si/No
+
+http://monitor.exxer.com.ar/admInputs.html
+
+Te paso el usuario y contraseña para que subas la página a www.webfaction.com
+usuario:     exxer
+contra:      d942e5cc
+
+para administrar:
+	https://my.webfaction.com/
+
+para ssh,scp:
+exxer@exxer.webfactional.com
+pscp file exxer@exxer.webfactional.com:webapps/monitor
+
+mysql db: capture_db
+user: monitor
+pass: monitor
+sitio: monitor.exxer.com.ar
+
+Para las temperatura 1,2 y 3 (que son los Freezers) la temperatura normal: -78 C , y el rango sería entre -60 C y -90 C
+Para la temperatura 4 (Temperatura ambiente) la temperatura normal: 20 C y el rango va entre 0 C  y 35 C
+Para las tensiones 8 y 9 (tension de linea) la tension normal es 220 V y el rango va entre 200 V  y 240 V.
+Para 10 (Valor de referencia) no hay alarma asociada solo debe mostrar el valor de temperatura.
+
+------------------------------------------------------------------------------------------------------------------------------
+Dejamos una sola alarma de Batería (7, Alarma Batería baja), y a la FuenteOK la llamamos Alarma Fuente entonces valor normal NO, y valor de alarma SI (notifica si recibis un 1).
+Quedaría:
+
+1, Temperatura Freezer 1
+2, Temperatura Freezer 2
+3, Temperatura Freezer 3
+4, Temperatura Ambiente
+5, Alarma de Temperatura
+6, Alarma de Corte de Tensión
+7, Alarma Batería baja
+8, Tensión de Línea 1
+9, Tensión de Línea 2
+10, Valor de Referencia
+11, Alarma Fuente : Si/No
+
+- Cuando se notifique la alarma de Batería baja los valores de temperatura no son válidos por lo que no habría que mostrarlos en la página web.
+
+- Se van a agregar otros sensores de temperatura de freezer, serían Freezer4, etc. cuando estén instalados los agregaríamos.
+
+30-oct-2013------------------------------------------------------------------------------------------------------------
+
+Diego,
+Los máximos mínimos no se cambien desde el gráfico, que tomen el valor de la página admInputs.html (creo que es así) .
+Al gráfico hay que agregarle a quien corresponde cada temperatura.
+
+Cuando esté listo que quede todo en una misma página ( Gráfico y muestras).
+
+en la pagina http://monitor.exxer.com.ar/displaySamples.html :
+
+    No mostrar valor de Referencia porque confunde.
+
+    el botón Refrescar no me funciona (uso Firefox), tengo que apretar F5 para que refresque.
+
+
+
+en la pagina http://monitor.exxer.com.ar/admInputs.html :
+
+    Fijate que cuando se hace un cambio de valor no lo refresca y pareciera que no lo cambia.
+    A las alarmas ( Alarma Temperatura, Alarma Corte de Tension, Alarma Fuente) no hay que poder cambiarles el valor.
+    El Valor de Referencia hay que sacarlo porque confunde al cliente.
+
+

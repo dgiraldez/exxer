@@ -1,0 +1,42 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    padding: 0;
+}
+ 
+#appLayout {
+    height: 100%;
+}
+#leftCol {
+    width: 14em;
+}
+ 
+.claro .demoLayout .edgePanel {
+    background-color: #d0e9fc;
+}
+ 
+.claro .demoLayout .topPanel {
+    background-color: #d0e9fc;
+}
+
+.claro .demoLayout .bottomPanel {
+    background-color: #d0e9fc;
+    height: 35px;
+}
+
+#dgrid .dgrid-column-set-0 {
+    width: 10%;
+}
+#dgrid .field-name {
+    width: 20%;
+}
+#dgrid .field-description {
+    width: 80%;
+}
+
+#viewsChart {
+    width: 550px;
+    height: 550px;
+}
+

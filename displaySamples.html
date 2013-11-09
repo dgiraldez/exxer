@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>Exxer monitor</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<link rel="stylesheet" href="dojo-release-1.9.1/dojox/grid/resources/claroGrid.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.9.1/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="resources/demo.css" media="screen">
+	
+<script>
+	dojoConfig = { async : true, parseOnLoad : true }
+</script>
+<script src="dojo-release-1.9.1/dojo/dojo.js"></script>
+<script>
+	require([
+				"dojo/store/JsonRest",
+				"dojo/store/Memory",
+				"dojo/store/Cache"
+							], function(JsonRest, Memory, Cache){
+				inputs = new Cache(JsonRest({target:"/projects/monitor/api/input/",idProperty: "id"}), new Memory());
+			});
+					
+    require([
+		"dojox/grid/DataGrid",
+		"dojox/grid/cells",
+		"dojox/grid/cells/dijit",
+		"dojo/data/ObjectStore",
+		"dijit/form/NumberTextBox",
+		"dojo/on",
+		"dojo/domReady!"
+	], function(DataGrid, cells, cellsDigit, ObjectStore, NumberTextBox, on){
+		
+    	var selected = 1;
+    
+		function formatCurrency(inDatum){
+			return isNaN(inDatum) ? '...' : dojo.currency.format(inDatum, this.constraint);
+		}
+
+		gridLayout = [{
+			defaultCell: { width: 4, editable: false, styles: 'text-align: right;'  },
+			cells: [
+				{ name: 'Entrada', field: 'description', width: 15 },
+				{ name: 'Valor', field: 'current', widgetClass: dijit.form.NumberTextBox },
+				{ name: 'Unidad', field: 'unit', styles: ''},
+				{ name: 'Ultima actualización', field: 'last', width: 10}
+			]
+		}];
+
+		gridInputs = new DataGrid({
+			store: dataStore = ObjectStore({objectStore: inputs}),
+			query: { shows: 1 },
+			autoWidth: true,
+			autoHeight: true,
+			structure: gridLayout
+		}, "gridInputs");
+		gridInputs.startup();
+		gridInputs.canSort = function () { return false };
+
+        on(gridInputs, "RowClick", function showDetail (e){
+            var idx = e.rowIndex,
+            item = this.getItem(idx);
+	        var value = this.store.getValue(item, "id");
+        	showDialog(value, this.store.getValue(item, "description"));
+		} );
+
+	});
+
+	require(["dojo/date/locale"]), function(locale, date){
+		locale.format( date, {datePattern:"yyyy-MM-dd hh:mm:ss" } );
+	};
+
+    require([
+       	"dijit/form/Button", 
+       	"dojo/dom", 
+       	"dojo/domReady!"
+    ], function (Button, dom) {
+        var refreshButton = new Button({ label: "Refrescar", 
+        	onClick: function () {
+		        //gridInputs._refresh();
+        		//gridInputs.store.fetch();
+        		//gridInputs.update();
+        		gridInputs.update();
+        		gridInputs._refresh();
+			}
+		}, "refreshButton");
+	});
+         
+	///////////////////////////////////////////////////////////////
+	// detail
+	require([ "dojo/store/JsonRest" ], function(JsonRest) {
+		samples = new JsonRest({
+			target : "/projects/monitor/api/samples/"
+		});
+	});
+	
+	require(["dojo/date", 'dijit/form/DateTextBox', 'dojo/domReady!'], function (date, DateTextBox) {
+	    //initial value current date
+	    myDate = new DateTextBox({
+	        value: new Date(),
+	        name: "myDate",
+	        onChange: function(v){
+				gridSamples.setQuery({ input_id:selected, filter:getFilter(v) })
+	        }
+    	}, "myDate");
+	});
+
+    // Require the Dialog class
+    require(["dijit/registry", "dojo/parser", "dojo/ready", "dojox/grid/DataGrid", "dijit/Dialog"], 
+    function(registry, parser, ready, grid, dialog){
+        ready(function(){
+            parser.parse();
+        });
+ 
+        // Show the dialog
+        showDialog = function(id,title) {
+        	selected = id;
+        	registry.byId("gridSamples").setQuery({ input_id:id, filter:getFilter(myDate.value) });
+        	var dialog = registry.byId("ajaxDialog");
+        	dialog.set({title:"Detalles: "+title});
+            registry.byId("ajaxDialog").show();
+        }
+    });
+
+	function filterDay(o) { //retorna el string con el rango de fechas para el query
+		var dt = new Date();
+		if (o != null){
+			dt.setTime(o);
+		}
+		var d = "'" + dt.getFullYear() + "-" + (dt.getMonth() + 1) + "-" + dt.getDate() + "'";
+		return d;
+	}
+
+	function nextDay(o){
+		return dojo.date.add(o,"day",1);
+	}
+
+	function getFilter(v){
+			return "created < "+filterDay(nextDay(v))+" and created >= "+filterDay(v);
+	}
+	
+	require([ "dijit/registry", 'dijit/form/DateTextBox', "dojo/date", "dojo/data/ObjectStore", "dojox/grid/DataGrid", "dojo/domReady!" ], 
+		function(registry, DateTextBox, date, ObjectStore, DataGrid) {
+			gridSamples = new DataGrid({
+				store : ObjectStore({
+					objectStore : samples
+				}),
+				autoWidth: true,
+				query: { input_id:1, filter:myDate.value },
+				structure : [{
+					defaultCell: { width: 3, editable: false, styles: 'text-align: right;'  },
+					cells:[ 
+					{ name : "Valor", field : "value" }, 
+					{ name : "Creado", field : "created", width : 10} 
+				]}]
+			}, "gridSamples");
+			gridSamples.startup();
+			gridSamples.noDataMessage = "No hay datos para esa fecha";
+			gridSamples.canSort = function() {
+				return false
+			};
+		});
+              
+</script>
+</head>
+
+<body class="claro">
+	<h1>Visualización de valores</h1>
+	<div id="gridInputs"></div>
+	<p>        
+		<button id="refreshButton"></button>
+	</p>
+	<p></p>
+	<a href="graph1.html">[Temperaturas Freezer]</a>
+	<a href="graph2.html">[Temperaturas ambiente]</a>
+	<a href="graph3.html">[Tensiones de linea]</a>
+	<a href="admInputs.html">[Configuración]</a>
+
+	<!-- Dialog -->
+	<div class="dijitHidden">
+	    <script type="text/javascript">
+	    </script>
+	    
+	    <!-- dialog that gets its content via ajax, uses loading message -->
+	    <div data-dojo-type="dijit/Dialog" style="height:300px;width:600px;" data-dojo-props="title:'Detalles',loadingMessage:'Loading dialog content...'" id="ajaxDialog">
+	    	<div id="inputSelect"></div>
+			<input id="myDate" type="text" name="myDate" data-dojo-type="dijit.form.DateTextBox" required="true"/>
+			<p></p>
+			<div id="gridSamples" style="height:210px"></div>
+	    
+	    </div>
+	</div>
+</body>
+</html>

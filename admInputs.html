@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+ 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <title>Exxer monitor</title>
+  <!--
+  <meta charset="ISO-8859-1"/>
+	-->
+	
+<link rel="stylesheet" href="dojo-release-1.9.1/dojox/grid/resources/claroGrid.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.9.1/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="resources/demo.css" media="screen">
+	
+<script>
+	dojoConfig = { async : true, parseOnLoad : true }
+</script>
+<script src="dojo-release-1.9.1/dojo/dojo.js"></script>
+  <script>
+
+			require([
+				"dojo/store/JsonRest",
+				"dojo/store/Memory",
+				"dojo/store/Cache"
+							], function(JsonRest, Memory, Cache){
+				inputs = new Cache(JsonRest({target:"/projects/monitor/api/input/",idProperty: "id"}), new Memory());
+			});
+			
+			require([
+				"dojox/grid/DataGrid",
+				"dojox/grid/cells",
+				"dojox/grid/cells/dijit",
+				"dojo/data/ObjectStore",
+				"dijit/form/NumberTextBox",
+				"dojo/on",
+				"dojo/domReady!"
+			], function(DataGrid, cells, cellsDigit, ObjectStore, NumberTextBox, DojoOn){
+				
+				function formatCurrency(inDatum){
+					return isNaN(inDatum) ? '...' : dojo.currency.format(inDatum, this.constraint);
+				}
+
+				gridLayout = [{
+					defaultCell: { width: 4, editable: true, styles: 'text-align: right;'  },
+					cells: [
+						{ name: 'Entrada', field: 'id', editable: false /* Can't edit ID's of dojo.data items */ },
+						{ name: 'Descripción', field: 'description', width: 15 },
+						{ name: 'Mínimo', field: 'min', widgetClass: dijit.form.NumberTextBox },
+						{ name: 'Máximo', field: 'max', widgetClass: dijit.form.NumberTextBox },
+						{ name: 'Unidad', field: 'unit', styles: ''},
+						{ name: 'Direcciones a notificar separadas por comas', field: 'notify', width: 30 },
+						{ name: 'Habilitado', field: 'enabled', width: 3, styles: 'text-align: center;'},
+					]
+				}];
+
+				grid = new DataGrid({
+					store: dataStore = ObjectStore({objectStore: inputs}),
+					autoWidth: true,
+					autoHeight: true,
+					query: { shows: 1 },
+					structure: gridLayout
+				}, "grid");
+				grid.startup();
+				grid.canEdit = function(inCell, inRowIndex) {
+					  var item = this.getItem(inRowIndex);
+					  //evito edicion si canedit =0 para max y min
+					  if(((inCell.index == 2)||(inCell.index == 3)) && item.canedit == 0)
+					    return false;
+					  else
+					    return true;
+					};
+				grid.canSort = function () { return false };
+				
+			});
+
+            require([
+            	"dijit/form/Button", 
+            	"dojo/dom", 
+            	"dojo/domReady!"
+            ], function (Button, dom) {
+                var addRemoveButton = new Button({
+                    label: "Save",
+                    onClick: function () {
+            if (grid.edit.isEditing()) {
+                grid.edit.apply();
+                grid.update();
+            }
+            if (dataStore.isDirty()) {
+                dataStore.save();
+            }
+                    }
+                }, "saveButton");
+            });
+            
+            require([
+            	"dijit/form/Button", 
+            	"dojo/dom", 
+            	"dojo/domReady!"
+            ], function (Button, dom) {
+                var editButton = new Button({
+                    label: "Cancel",
+                    onClick: function () {
+            if (grid.edit.isEditing()) {
+                grid.edit.apply();
+            }
+
+            dataStore.revert();
+                    }
+                }, "cancelButton");
+            });
+            
+  </script>
+ </head>
+ 
+ <body class="claro">
+ 	<h1>Configuración de entradas</h1>
+ 	<p></p>
+ 	<div id="inputSelect"></div>
+ 	
+  <div id="grid"></div>
+ 	<p></p>
+  <div id="normalMode">
+        <button id="saveButton"></button>
+        <button id="cancelButton"></button>
+    </div> 
+	<p></p>
+	<a href="displaySamples.html">[Volver]</a>
+ </body>
+</html>
