@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>Exxer monitor</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<link rel="stylesheet" href="dojo-release-1.8.1/dojox/grid/resources/claroGrid.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.8.1/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="resources/demo.css" media="screen">
+
+<script>
+	dojoConfig = { async : true, parseOnLoad : true }
+</script>
+<script src="dojo-release-1.8.1/dojo/dojo.js"></script>
+<script>
+	require([ "dojo/store/JsonRest" ], function(JsonRest) {
+		inputs = new JsonRest({
+			target : "/projects/monitor/api/input/"
+		});
+	});
+
+	require([ "dojo/store/JsonRest" ], function(JsonRest) {
+		myStore = new JsonRest({
+			target : "/projects/monitor/api/samples/"
+		});
+	});
+
+	require(["dojo/date/locale"]), function(locale, date){
+		locale.format( date, {datePattern:"yyyy-MM-dd hh:mm:ss" } );
+	};
+
+	function filterDay(o) { //retorna el string con el rango de fechas para el query
+		var dt = new Date();
+		if (o != null){
+			dt.setTime(o);
+		}
+		var d = "'" + dt.getFullYear() + "-" + (dt.getMonth() + 1) + "-" + dt.getDate() + "'";
+		return d;
+	}
+
+	require([ "dojo/date", "dojo/data/ObjectStore", "dojox/grid/DataGrid", "dojo/domReady!" ], 
+		function(date, ObjectStore, DataGrid) {
+			function nextDay(o){
+				return date.add(o,"day",1);
+			}
+			function getFilter(v){
+				return "created < "+filterDay(nextDay(v))+" and created >= "+filterDay(v);
+			}
+			
+			grid = new DataGrid({
+				store : ObjectStore({
+					objectStore : myStore
+				}),
+				query: { input_id:1, filter:getFilter(new Date()) },
+				structure : [ {
+					name : "Valor",
+					field : "value",
+					width : "120px"
+				}, {
+					name : "Creado",
+					field : "created",
+					width : "150px"
+				} ]
+			}, "grid");
+			grid.startup();
+			grid.noDataMessage = "No hay datos";
+			grid.canSort = function() {
+				return false
+			};
+		});
+
+	require(["dojo/date", 
+	    	"dojo/ready", 
+	    	"dojo/data/ObjectStore",
+			"dijit/form/FilteringSelect" ], 
+		function(date, ready, ObjectStore, FilteringSelect) {
+			ready(function() {
+				
+				function nextDay(o){
+					return date.add(o,"day",1);
+				}
+				function getFilter(v){
+					return "created < "+filterDay(nextDay(v))+" and created >= "+filterDay(v);
+				}
+				
+				filteringSelect = new FilteringSelect({
+					id : "inputSelect",
+					value : 1,
+					store : ObjectStore({
+						objectStore : inputs
+					}),
+					searchAttr : "description",
+					placeHolder : "Select an input",
+					onChange : function(v) {
+						if (myDate.value == null){
+							grid.setQuery({ input_id:v })
+						} else {
+							grid.setQuery({ input_id:v, filter:getFilter(myDate.value)})
+						}
+					}
+				}, "inputSelect");
+				filteringSelect.startup();
+			});
+		});
+
+	require([ "dojo/parser", "dijit/form/DateTextBox" ]);
+
+	require(["dojo/date", 'dijit/form/DateTextBox', 'dojo/domReady!'], function (date, DateTextBox) {
+
+		function nextDay(o){
+			return date.add(o,"day",1);
+		}
+		function getFilter(v){
+			return "created < "+filterDay(nextDay(v))+" and created >= "+filterDay(v);
+		}
+
+	    //initial value current date
+	    myDate = new DateTextBox({
+	        value: new Date(),
+	        name: "myDate",
+	        onChange: function(v){
+				grid.setQuery({ input_id:filteringSelect.value, filter:getFilter(v) })
+	        }
+    	}, "myDate");
+	});
+	    
+</script>
+</head>
+
+<body class="claro">
+	<h1>Visualización de valores</h1>
+	<p></p>
+	<div id="inputSelect"></div>
+	<input id="myDate" type="text" name="myDate" data-dojo-type="dijit.form.DateTextBox" required="true"/>
+	<p></p>
+	<div id="grid"></div>
+
+</body>
+</html>

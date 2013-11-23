@@ -1,0 +1,191 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<link rel="stylesheet" href="dojo-release-1.9.1/dojox/grid/resources/claroGrid.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.9.1/dijit/themes/claro/claro.css">
+<link rel="stylesheet" href="resources/demo.css" media="screen">
+	
+<script>
+	dojoConfig = { async : true, parseOnLoad : true }
+</script>
+<script src="dojo-release-1.9.1/dojo/dojo.js"></script>
+<script>
+
+require(["dojo/store/JsonRest", "dojo/store/Memory", "dojo/store/Cache", "dojo/store/Observable"], function(JsonRest, Memory, Cache, Observable){
+	samples = new Observable(new Cache(
+		JsonRest({
+			target:"/projects/monitor/api/samples/",
+			idProperty: "id"
+		}), 
+		new Memory()
+	));
+});
+
+require(["dojo/store/JsonRest", "dojo/store/Memory", "dojo/store/Cache"], function(JsonRest, Memory, Cache){
+	inputs = new Cache(JsonRest({target:"/projects/monitor/api/input/",idProperty: "id"}), new Memory());
+});
+				
+
+function formatDay(o) { //retorna el string con el rango de fechas para el query
+	var dt = new Date();
+	if (o != null){
+		dt.setTime(o);
+	}
+	return dojo.date.locale.format(dt, {datePattern: "yyyy-MM-dd", selector: "date"});
+}
+
+function nextDay(o){
+	return dojo.date.add(o,"day",1);
+}
+
+function prevDay(o){
+	return dojo.date.add(o,"day",-1);
+}
+
+function getFilter(v){
+	return "created < '"+formatDay(nextDay(v))+"' and created > '"+formatDay(v)+"'";
+}
+
+//retorna la cantidad de minutos desde las cero hs: se usa para el eje x
+function created2minute(dateStr) {
+	var a = dateStr.split(" ");
+	var t = a[1].split(":");
+	var minute = (+t[0]) * 60 + (+t[1]);
+	return minute;
+}
+
+//retorna un string MM/dd/YYYY
+function labelfTime(o) {
+	var dt = new Date();
+	dt.setTime(o);
+	return dojo.date.locale.format(dt, {datePattern: "MM/dd/yyyy", selector: "date"});
+}
+
+//retorna un string HH:MM, a partir de la cantidad de minutos
+function labelHHMM(o) {
+	return dojo.date.locale.format(
+		new Date(0,0,0,o/60,o%60,0), 
+		{timePattern: "HH:mm", selector: "time"}
+	)+" hs";
+}
+
+//retorna un date
+function dateTimeStr2Date(dateStr) {
+	var a = dateStr.split(" ");
+	var d = a[0].split("-");
+	var t = a[1].split(":");
+	var myDate = new Date(d[0], (d[1] - 1), d[2], t[0], t[1], t[2]);
+	return myDate;
+//	return dojo.date.locale.parse(dateStr, {datePattern: "yyyy-MM-dd HH:mm:ss"});
+}
+
+function getDot(item, store){
+	var o = {
+		x: created2minute(item["created"]),
+		y: item["value"]
+		//tooltip: item["id"]
+		//color: "red"
+	};
+	return o;
+}
+
+	params = [];
+	params[0] = {
+	    min:-120, max:50, title:"Temperaturas Freezer",
+	    series: [//id:input_index,color:series_color
+		{id:1,color:"red",min:-100,max:30},
+		{id:2,color:"green",min:-110,max:20},
+		{id:3,color:"blue",min:-90,max:10}
+		]};
+	params[1] = {
+		    min:-120, max:50, title:"Temperaturas ambiente",
+		    series: [//id:input_index,color:series_color
+			{id:1,color:"red",min:-100,max:30},
+			{id:2,color:"green",min:-100,max:30},
+			{id:3,color:"blue",min:-100,max:30}
+			]};
+	params[1] = {
+		    min:-120, max:50, title:"Tensiones de linea",
+		    series: [//id:input_index,color:series_color
+			{id:1,color:"red",min:-100,max:30},
+			{id:2,color:"green",min:-100,max:30},
+			{id:3,color:"blue",min:-100,max:30}
+			]};
+	idx = 0;
+
+require(["dojo/date", 'dijit/form/DateTextBox', 'dojo/domReady!', "dojox/charting/StoreSeries", "dojo/_base/array"], function (date, DateTextBox, ready, StoreSeries, array) {
+    //initial value current date
+    myDate = new DateTextBox({
+        value: new Date(),
+        name: "myDate",
+        onChange: function(v){
+			dojo.forEach(params[idx].series, function(item, i){
+				inputs.query({id:item.id}).then(function(input) {
+					samples.query({ input_id:input.id, filter:getFilter(myDate.value) }).then(function(result) {
+						chart.updateSeries(input.description, array.map(result, getDot, this), true).delayedRender();
+					});
+				});
+			});
+        }
+	}, "myDate");
+});
+
+require(["dojox/charting/Chart", "dojox/charting/axis2d/Default", "dojox/charting/plot2d/Lines", "dojo/ready", "dojox/charting/StoreSeries", 
+         "dojox/charting/plot2d/MarkersOnly", "dojox/charting/plot2d/Indicator", "dojox/charting/action2d/MouseZoomAndPan",
+         "dojox/charting/widget/SelectableLegend", "dojox/charting/action2d/Tooltip"],
+		  function(Chart, Default, Lines, ready, StoreSeries, MarkersOnly, Indicator, MouseZoomAndPan, SelectableLegend, Tooltip){
+		  ready(function(){
+			
+		    chart = new Chart("chart", { 
+		    	margins : {l:20, t:30, b:10, r:50},
+		        title: params[idx].title,
+		        titlePos: "bottom",
+		        titleGap: 25,
+		        titleFont: "normal normal normal 15pt Arial",
+		        titleFontColor: "black"
+		    	});
+		    chart.addPlot("default", {type: "Lines", markers: true});
+		    chart.addAxis("x", {
+		    	labelFunc:labelHHMM,
+		    	font: "normal normal normal 10pt Tahoma"
+		    });
+		    chart.addAxis("y", {
+		    	vertical: true,
+		    	font: "normal normal normal 10pt Tahoma",
+				min : params[idx].min,
+				max : params[idx].max
+		    });
+				//console.log(inputValues["1"]);
+				dojo.forEach(params[idx].series, function(item, i){
+					inputs.query({id:item.id}).then(function(input) {
+					    chart.addSeries(input.description, StoreSeries( samples, {query: { input_id:input.id, filter:getFilter(myDate.value) }}, getDot ), {stroke: {color: item.color}});
+						chart.addPlot("thresholdm"+item.id, {
+							type: Indicator,
+							vertical: false, lineStroke: { color: item.color, style: "ShortDash"},
+							stroke: null, outline: null, fill: null,
+							offset: { y: 4, x: 10 },
+							values: +input.min //
+							});
+						chart.addPlot("thresholdM"+item.id, {
+							type: Indicator,
+							vertical: false, lineStroke: { color: item.color, style: "ShortDash"},
+							stroke: null, outline: null, fill: null,
+							offset: { y: 4, x: 10 },
+							values: +input.max
+							});
+					});
+				});
+				var tip = new Tooltip(chart,"default");
+				var mag2 = new MouseZoomAndPan(chart, "default");
+			    chart.render();
+		  });
+		});
+</script>
+  </head>
+<body class="claro" style="height: 90%; width: 90%">
+	<input id="myDate" type="text" name="myDate" data-dojo-type="dijit.form.DateTextBox" required="true"/>
+	<p></p>
+	<div id="chart" style="width: 100%; height: 90%;"></div>
+  </body>
+</html>
