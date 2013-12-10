@@ -1,4 +1,5 @@
 <?php
+//pagina que retorna los seteos al hardware
 header('Content-type: application/json; charset=utf8');
 //header("Content-type: text/plain");
 $username = "monitor";
@@ -18,11 +19,7 @@ or die("Could not select test");
 
 $inputs = array();
 
-$query = "SELECT id, description, min, max, current, unit, notify, enabled, alerted, created, last FROM input";
-if (isset($_GET['description'])) {
-	$description = $_GET["description"];
-	$query = $query." WHERE description like '".str_replace("*", "%", $description)."'";
-}
+$query = "SELECT id, description, min, max, current, unit, notify, enabled, alerted, created, last FROM input WHERE id > 0";
 
 //execute the SQL query and return records
 $result = mysql_query($query);
