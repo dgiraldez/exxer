@@ -1,0 +1,281 @@
+<!--[if IE 7]>
+<!DOCTYPE>
+<html lang="en">
+	<head>
+<![endif]-->
+<!--[if IE 8]>
+<!DOCTYPE>
+<html lang="en">
+    <head>
+           <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<![endif]-->
+
+<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+<title>Exxer monitor</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<link rel="stylesheet" href="dojo-release-1.9.1/dojox/grid/resources/claroGrid.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.9.1/dijit/themes/claro/claro.css" media="screen">
+<link rel="stylesheet" href="resources/demo.css" media="screen">
+<link rel="stylesheet" href="dojo-release-1.9.1/dijit/tests/css/dijitTests.css" media="screen">
+	
+<script>
+	dojoConfig = { async : true, parseOnLoad : true }
+</script>
+<script src="dojo-release-1.9.1/dojo/dojo.js"></script>
+<script>
+
+require(["dojo/store/JsonRest", "dojo/store/Memory", "dojo/store/Cache", "dojo/store/Observable"], function(JsonRest, Memory, Cache, Observable){
+	samples = new Observable(new Cache(
+		JsonRest({
+			target:"/projects/monitor/api/history/",
+			idProperty: "id"
+		}), 
+		new Memory()
+	));
+});
+
+require(["dojo/store/JsonRest", "dojo/store/Memory", "dojo/store/Cache"], function(JsonRest, Memory, Cache){
+	inputs = new Cache(JsonRest({target:"/projects/monitor/api/input/",idProperty: "id"}), new Memory());
+});
+				
+
+function formatDay(o) { //retorna el string con el rango de fechas para el query
+	var dt = new Date();
+	if (o != null){
+		dt.setTime(o);
+	}
+	return dojo.date.locale.format(dt, {datePattern: "yyyy-MM-dd", selector: "date"});
+}
+
+function nextDay(o){
+	return dojo.date.add(o,"day",1);
+}
+
+function prevDay(o){
+	return dojo.date.add(o,"day",-1);
+}
+
+function getFilter(v){
+	return "created < '"+formatDay(nextDay(v))+"' and created > '"+formatDay(v)+"'";
+}
+
+//retorna la cantidad de minutos desde las cero hs: se usa para el eje x
+function created2minute(dateStr) {
+	var a = dateStr.split(" ");
+	var t = a[1].split(":");
+	var minute = (+t[0]) * 60 + (+t[1]);
+	return minute;
+}
+
+//retorna la fecha en horas para el eje x
+function date2int(dateStr) {
+	var a = dateStr.split(" ");
+	var hs = +a[0]
+	var t = a[1].split(":");
+	var hs = +t[0];
+	return minute;
+}
+
+//retorna un string fecha, a partir de los milisegundos
+function labelx(o) {
+	var dt = new Date();
+	dt.setTime(o);
+	return dojo.date.locale.format(dt, {datePattern: "dd/MM/yyyy", timePattern: "HH 'hs'"});
+}
+
+//retorna un date a partir de un string yyyy/MM/dd HH:mm:ss
+function dateTimeStr2Date(dateStr) {
+	var a = dateStr.split(" ");
+	var d = a[0].split("-");
+	var t = a[1].split(":");
+	var myDate = new Date(d[0], (d[1] - 1), d[2], t[0], t[1], t[2]);
+	return myDate;
+}
+
+function getDot(item, store){
+	dt = dateTimeStr2Date(item["date"]);
+	//console.log(dojo.date.locale.format(dt, {datePattern: "dd/MM/yyyy", timePattern: "HH 'hs'"}));
+	//console.log(dt.getTime());
+	var o = {
+		x: dt.getTime(),
+		open: +item["open"],
+		close: +item["close"],
+		high: +item["max"],
+		low: +item["min"],
+		tooltip: labelx(dt.getTime())+" max: "+item["max"]+" min: "+item["min"]
+		//labelx(dt.getTime())+
+	};
+	return o;
+}
+
+params = [];
+params[1] = {min:-93, max:-57, title:"Temperaturas Freezer"};
+params[2] = {min:-5, max:40, title:"Temperaturas ambiente"};
+params[3] = {min:195, max:245, title:"Tensiones de linea"};
+groups = 1;
+
+require(["dojo/date", 'dijit/form/DateTextBox', 'dojo/domReady!', "dojox/charting/StoreSeries", "dojo/_base/array"], function (date, DateTextBox, ready, StoreSeries, array) {
+    //initial value current date
+    myDate = new DateTextBox({
+        value: new Date(2013,9,25),
+        //value: new Date(),
+        name: "myDate",
+        onChange: function(v){
+			inputs.query({id:1}).then(function(inputs) {
+				dojo.forEach(inputs, function(input, i){
+					samples.query({ inputId:input.id, scale:0 }).then(function(result) {
+						chart.updateSeries(input.description, array.map(result, getDot, this), true).delayedRender();
+					});
+				});
+			});
+			//legend.refresh();
+        }
+	}, "myDate");
+});
+
+require(["dojox/charting/Chart", "dojox/charting/themes/Claro", "dojox/charting/axis2d/Default", 
+         "dojox/charting/plot2d/Default", "dojox/charting/plot2d/OHLC", "dojox/charting/plot2d/Lines", 
+         "dojo/ready", "dojox/charting/StoreSeries", 
+         "dojox/charting/plot2d/MarkersOnly", "dojox/charting/plot2d/Indicator", "dojox/charting/action2d/MouseZoomAndPan",
+         "dojox/charting/widget/Legend", "dojox/charting/action2d/Tooltip", "dijit/form/Select"],
+		  function(Chart, Claro, Default, 
+				  DefaultPlot, OHLCPlot, LinesPlot, 
+				  ready, StoreSeries, 
+				  MarkersOnly, Indicator, MouseZoomAndPan, 
+				  Legend, Tooltip, Select){
+		  ready(function(){
+			
+			chart = new Chart("chart");
+		    chart.addPlot("lines", {type: "OHLC", gap:4});
+		    chart.addAxis("x", {
+		    	labelFunc:labelx,
+		    	font: "normal normal normal 10pt Tahoma",
+		    	fixLower: "major", fixUpper: "major"
+		    });
+		    chart.addAxis("y", {
+		    	vertical: true,
+		    	font: "normal normal normal 10pt Tahoma",
+				min : params[groups].min,
+				max : params[groups].max,
+		    	fixLower: "major", fixUpper: "major", natural: true
+		    });
+			inputs.query({id:1}).then(function(inputs) {
+				dojo.forEach(inputs, function(input, i){
+				    chart.addSeries(input.description, 
+				    		StoreSeries( samples, {query: { inputId:input.id, scale:0 }}, getDot ), 
+				    		{stroke: {color: input.color}, fill: input.color, plot:"lines"});
+					chart.addPlot("thresholdm"+input.id, {
+						type: Indicator,
+						vertical: false, lineStroke: { color: input.color, style: "ShortDash"},
+						stroke: null, outline: null, fill: null,
+						offset: { y: 4, x: 10 },
+						values: +input.min
+						});
+					chart.addPlot("thresholdM"+input.id, {
+						type: Indicator,
+						vertical: false, lineStroke: { color: input.color, style: "ShortDash"},
+						stroke: null, outline: null, fill: null,
+						offset: { y: 4, x: 10 },
+						values: +input.max
+						});
+				});
+			});
+			var tip = new Tooltip(chart,"lines");
+			var mag2 = new MouseZoomAndPan(chart, "lines");
+		    chart.render();
+		    legend = new Legend({chartRef:chart}, "legend");
+		    setTimeout(function(){ legend.refresh() }, 1000);
+			    
+			select = new Select({
+				name: "stateSelect",
+				options: [
+                    {value: 0, label: "horas", selected: true},
+                    {value: 1, label: "dias"}
+		        ], 
+				onChange: function(){
+					var scale = +dijit.byId("scaleSelect").get("value");
+					inputs.query({groups:groups}).then(function(inputs) {
+						dojo.forEach(inputs, function(input, i){
+							//console.log(scale);
+							samples.query({ inputId:input.id, scale:scale }).then(function(result) {
+								chart.updateSeries(input.description, array.map(result, getDot, this), true).delayedRender();
+							});
+						});
+					});
+				}
+			}, "scaleSelect");
+			select.startup();
+			
+			mesSelect = new Select({
+				name: "mesSelect",
+				options: [
+                    {value: 1, label: "enero", selected: true},
+                    {value: 2, label: "febrero"},
+                    {value: 3, label: "marzo"},
+                    {value: 4, label: "abril"},
+                    {value: 5, label: "mayo"},
+                    {value: 6, label: "junio"},
+                    {value: 7, label: "julio"},
+                    {value: 8, label: "agosto"},
+                    {value: 9, label: "septiembre"},
+                    {value: 10, label: "octubre"},
+                    {value: 11, label: "noviembre"},
+                    {value: 12, label: "diciembre"}
+		        ], 
+				onChange: function(){
+					var mes = +dijit.byId("mesSelect").get("value");
+					inputs.query({groups:groups}).then(function(inputs) {
+						dojo.forEach(inputs, function(input, i){
+							//console.log(scale);
+							samples.query({ inputId:input.id, scale:scale }).then(function(result) {
+								chart.updateSeries(input.description, array.map(result, getDot, this), true).delayedRender();
+							});
+						});
+					});
+				}
+			}, "mesSelect");
+			select.startup();
+
+			yearSelect = new Select({
+				name: "yearSelect",
+				options: [
+                    {value: 2013, label: "2013", selected: true},
+                    {value: 2014, label: "2014"}
+		        ], 
+				onChange: function(){
+					var year = +dijit.byId("yearSelect").get("value");
+					inputs.query({groups:groups}).then(function(inputs) {
+						dojo.forEach(inputs, function(input, i){
+							//console.log(scale);
+							samples.query({ inputId:input.id, scale:scale }).then(function(result) {
+								chart.updateSeries(input.description, array.map(result, getDot, this), true).delayedRender();
+							});
+						});
+					});
+				}
+			}, "yearSelect");
+			select.startup();
+		  });
+		});
+</script>
+  </head>
+<body class="claro" style="height: 90%; width: 90%">
+	<h1>Tensiones de linea</h1>
+	<div id="scaleSelect"></div>
+	<div id="mesSelect"></div>
+	<div id="yearSelect"></div>
+	<p></p>
+	<input id="myDate" type="text" name="myDate" data-dojo-type="dijit.form.DateTextBox" required="true"/>
+	<p></p>
+	<div id="chart" style="width: 100%; height: 90%;"></div>
+	<div id="legend"></div>
+	
+	<p></p>
+	<a href="displaySamples.html">[Inicio]</a>
+	<a href="graph1.html">[Temperaturas Freezer]</a>		
+	<a href="graph2.html">[Temperaturas ambiente]</a>		
+  </body>
+</html>
