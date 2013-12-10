@@ -82,4 +82,10 @@ en la pagina http://monitor.exxer.com.ar/admInputs.html :
     A las alarmas ( Alarma Temperatura, Alarma Corte de Tension, Alarma Fuente) no hay que poder cambiarles el valor.
     El Valor de Referencia hay que sacarlo porque confunde al cliente.
 
+en horas, mostrar 2 meses (1400 muestras)
+en dias, mostrar todo (y se va depurando)
 
+La pagina
+	getInputs.php 
+es la que usa el hardware y retorna solo los inputs mayores a 0 (no retorna por ej la alarma
+de falta de muestras
