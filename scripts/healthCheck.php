@@ -5,7 +5,7 @@
 
 $link = mysqli_connect("localhost","monitor","monitor","capture_db") or
 	die("Could not connect: " . mysqli_error());
-//consulto parametros del backup
+//consulto parametros de notificacion
 $query="SELECT notify, enabled FROM input WHERE id = -1";
 $result = mysqli_query($link,$query);
 if (!$result) die('Error: ' . mysqli_error());
